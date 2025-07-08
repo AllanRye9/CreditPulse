@@ -1,16 +1,38 @@
-# credit_pulse
+# CreditPulse Team – AI-Powered Credit Card Management
 
-A new Flutter project.
+## 📌 Project Overview
+CreditPulse aims to prevent customers from missing payment deadlines by using AI-driven credit card management, automated insights, and reminders.
 
-## Getting Started
+## 🏗️ Architecture Overview
+- **Frontend**: Flutter (OAuth-secured email access, content extraction)
+- **Backend**: FastAPI (Python), SQLite, REST API, Uvicorn
+- **FastAPI Benefits**: Async support, minimal boilerplate, OpenAPI docs, ideal for ML deployment
 
-This project is a starting point for a Flutter application.
+## 🧰 Technology Stack
+- Backend: FastAPI, SQLAlchemy, Pydantic
+- AI/ML: spaCy, TensorFlow, PyTorch, scikit-learn
+- Document Parsing: PyMuPDF, pikepdf, pytesseract
+- Data Processing: pandas, NumPy, dateparser
 
-A few resources to get you started if this is your first Flutter project:
+## 🔑 Features
+- Email Processing & Statement Parsing
+- Transaction Recognition & Deduplication
+- AI-Powered Categorization & Anomaly Detection
+- Proactive Payment Reminders
+- Reward Analysis and Optimization
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 📱 Mobile App Flow
+1. OAuth Authentication via Flutter
+2. Email Filtering & Extraction
+3. Backend Communication via API
+4. AI Analysis & Smart Alerts
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 💼 Business Value
+- Reduce Late Fees
+- Improve Credit Scores
+- Maximize Rewards
+- Boost Financial Awareness
+- Detect Fraud with Real-Time AI
+
+---
+Generated on: 2025-07-08
