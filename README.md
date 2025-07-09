@@ -36,7 +36,7 @@
 </div>
 
 ---
-<div style="display: flex; gap: 10px; overflow-x: auto;"> <img src="screenshots/dashboard.png" width="200" alt="Dashboard"> <img src="screenshots/analysis.png" width="200" alt="Spending Analysis"> <img src="screenshots/alerts.png" width="200" alt="Payment Alerts"> </div>
+<div style="display: flex; gap: 10px; overflow-x: auto;"><img src="images/wio2.jpeg" width="200" alt="Spending Analysis"> <img src="images/wio-pat.jpeg" width="200" alt="Payment Alerts"> </div>
 
 ## 🚀 Quick Start
 
@@ -45,6 +45,8 @@
 - Flutter 3.13+
 - Google Cloud Platform account (for Gmail API
 
+###API Endpoint
+- [Backend](https://creditpulse.onrender.com/docs#/)
  
 ### Installation
 
@@ -79,4 +81,3 @@ graph TD
     style D fill:#1f2020,stroke:#d4c5f9
     style E fill:#1f2020,stroke:#f97583
 ```
-  
