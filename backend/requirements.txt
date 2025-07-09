@@ -20,3 +20,5 @@ dateparser
 python-dateutil                         
 regex    
 pytz
+httpx
+dotenv

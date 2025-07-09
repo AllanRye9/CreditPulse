@@ -65,7 +65,7 @@ async def chat(chat_request: ChatRequest):
             # Handle non-200 responses
             if response.status_code != 200:
                 try:
-                    error_detail = response.json()  # ✅ FIXED: no await
+                    error_detail = response.json()
                 except Exception:
                     error_detail = response.text
                 return {
@@ -75,7 +75,7 @@ async def chat(chat_request: ChatRequest):
 
             # Handle success
             try:
-                data = response.json()  # ✅ FIXED: no await
+                data = response.json()
                 reply = data["choices"][0]["message"]["content"]
                 return {"response": reply}
             except Exception as e:
