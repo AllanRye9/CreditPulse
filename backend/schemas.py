@@ -2,6 +2,10 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
+
+class ChatRequest(BaseModel):
+    message: str
+    
 class CustomerCreate(BaseModel):
     name: str
     email: EmailStr

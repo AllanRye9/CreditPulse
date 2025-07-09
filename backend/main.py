@@ -4,6 +4,9 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 import uvicorn
+from pydantic import BaseModel
+
+
 
 from database import SessionLocal, engine, Base
 from models import Customer, Transaction, CreditCard
@@ -19,7 +22,7 @@ from services.transaction_deduplicator import TransactionDeduplicator
 from schemas import (
     CustomerCreate, CustomerResponse, TransactionResponse, CreditCardResponse, 
     CreditCardCreate, SMSParseRequest, SMSParseResponse, SMSBatchParseRequest, SMSBatchParseResponse,
-    EmailProcessRequest
+    EmailProcessRequest, ChatRequest
 )
 
 Base.metadata.create_all(bind=engine)
@@ -44,6 +47,17 @@ def get_db():
         yield db
     finally:
         db.close()
+
+import os
+import httpx
+from dotenv import load_dotenv
+       
+load_dotenv()
+
+API_KEY = os.getenv("OPENROUTER_API_KEY")  # Store your API key in .env under this name
+MODEL = "mistralai/mistral-7b-instruct:free"
+
+
 
 @app.get("/")
 async def root():
@@ -510,6 +524,65 @@ async def upload_email_content(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error processing email content: {str(e)}")
+
+
+@app.post("/chat")
+async def chat(chat_request: ChatRequest):
+    user_message = chat_request.message
+
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "model": MODEL,
+        "messages": [
+            {"role": "system", "content": "You are a helpful banking assistant."},
+            {"role": "user", "content": user_message}
+        ]
+    }
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=30.0
+            )
+
+            if response.status_code != 200:
+                try:
+                    error_detail = response.json()  # ✅ NO await here
+                except Exception:
+                    error_detail = response.text
+                return {
+                    "error": f"OpenRouter Error {response.status_code}",
+                    "detail": error_detail
+                }
+
+            try:
+                data = response.json()  # ✅ NO await here
+                reply = data["choices"][0]["message"]["content"]
+                return {"response": reply}
+            except Exception as e:
+                return {
+                    "error": "Failed to parse response from OpenRouter.",
+                    "detail": str(e)
+                }
+
+        except httpx.RequestError as e:
+            return {
+                "error": "Connection error with OpenRouter API",
+                "detail": str(e)
+            }
+
+        except Exception as e:
+            return {
+                "error": "Unexpected server error",
+                "detail": str(e)
+            }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
