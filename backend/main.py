@@ -512,4 +512,4 @@ async def upload_email_content(
         raise HTTPException(status_code=500, detail=f"Error processing email content: {str(e)}")
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="10.18.246.204", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
