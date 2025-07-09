@@ -60,6 +60,9 @@ flutter build apk --release
 # For iOS
 flutter build ios --release
 
+# To run app
+flutter run
+
 #### Backend (Python)
 ```bash
 cd backend
