@@ -31,24 +31,6 @@ class RewardAnalyzer:
             'standard': {'rate': 0.1999, 'period_months': None},
             'penalty': {'rate': 0.2999, 'period_months': None}
         }
-        
-        # Currency-specific thresholds and amounts
-        self.currency_config = {
-            'AED': {
-                'reward_threshold': 50,  # Minimum additional rewards to recommend
-                'fixed_payment_low': 200,
-                'fixed_payment_high': 500
-            },
-            'DHS': {
-                'reward_threshold': 50,  # Same as AED (1:1 ratio)
-                'fixed_payment_low': 200,
-                'fixed_payment_high': 500
-            }
-        }
-    
-    def get_currency_code(self, credit_card_info: Dict) -> str:
-        """Extract currency code from credit card info, defaults to AED"""
-        return credit_card_info.get('currency_code', 'AED')
     
     def analyze_rewards(self, transactions: List[Dict], credit_card_info: Dict) -> Dict:
         if not transactions:
@@ -56,15 +38,13 @@ class RewardAnalyzer:
         
         reward_type = credit_card_info.get('reward_type', 'cashback')
         reward_rates = self.reward_categories.get(reward_type, self.reward_categories['cashback'])
-        currency_code = self.get_currency_code(credit_card_info)
         
         analysis = {
             'total_rewards_earned': 0,
             'rewards_by_category': {},
             'monthly_rewards': {},
             'potential_rewards': {},
-            'recommendations': [],
-            'currency_code': currency_code
+            'recommendations': []
         }
         
         category_totals = defaultdict(float)
@@ -102,7 +82,7 @@ class RewardAnalyzer:
             }
         
         analysis['potential_rewards'] = self._calculate_potential_rewards(category_totals, reward_rates)
-        analysis['recommendations'] = self._generate_reward_recommendations(analysis, currency_code)
+        analysis['recommendations'] = self._generate_reward_recommendations(analysis)
         
         return analysis
     
@@ -132,17 +112,15 @@ class RewardAnalyzer:
         
         return potential
     
-    def _generate_reward_recommendations(self, analysis: Dict, currency_code: str) -> List[str]:
+    def _generate_reward_recommendations(self, analysis: Dict) -> List[str]:
         recommendations = []
         
         potential_rewards = analysis.get('potential_rewards', {})
-        currency_config = self.currency_config.get(currency_code, self.currency_config['AED'])
-        reward_threshold = currency_config['reward_threshold']
         
         for category, data in potential_rewards.items():
-            if data['additional_rewards'] > reward_threshold:
+            if data['additional_rewards'] > 50:
                 recommendations.append(
-                    f"Consider a card with better {category} rewards - potential additional {currency_code} {data['additional_rewards']:.2f}/year"
+                    f"Consider a card with better {category} rewards - potential additional ${data['additional_rewards']:.2f}/year"
                 )
         
         category_spending = analysis.get('rewards_by_category', {})
@@ -157,15 +135,11 @@ class RewardAnalyzer:
         return recommendations
     
     def calculate_interest_charges(self, credit_card_info: Dict, payment_history: List[Dict]) -> Dict:
-        currency_code = self.get_currency_code(credit_card_info)
-        currency_config = self.currency_config.get(currency_code, self.currency_config['AED'])
-        
         analysis = {
             'current_balance': credit_card_info.get('current_balance', 0),
             'minimum_payment': credit_card_info.get('minimum_payment', 0),
             'apr': credit_card_info.get('apr', 0.1999),
             'monthly_interest_rate': credit_card_info.get('apr', 0.1999) / 12,
-            'currency_code': currency_code,
             'projected_payoff': {},
             'interest_scenarios': {}
         }
@@ -177,8 +151,8 @@ class RewardAnalyzer:
         scenarios = {
             'minimum_payment': min_payment,
             'double_minimum': min_payment * 2,
-            'fixed_low': currency_config['fixed_payment_low'],
-            'fixed_high': currency_config['fixed_payment_high']
+            'fixed_200': 200,
+            'fixed_500': 500
         }
         
         for scenario_name, payment_amount in scenarios.items():
@@ -209,13 +183,12 @@ class RewardAnalyzer:
                 'monthly_payment': payment_amount,
                 'months_to_payoff': months_to_payoff,
                 'total_interest': total_interest,
-                'total_paid': balance + total_interest,
-                'currency_code': currency_code
+                'total_paid': balance + total_interest
             }
         
         return analysis
     
-    def generate_spending_insights(self, transactions: List[Dict], currency_code: str = 'AED') -> Dict:
+    def generate_spending_insights(self, transactions: List[Dict]) -> Dict:
         if not transactions:
             return {}
         
@@ -223,8 +196,7 @@ class RewardAnalyzer:
             'spending_trends': {},
             'category_patterns': {},
             'monthly_analysis': {},
-            'recommendations': [],
-            'currency_code': currency_code
+            'recommendations': []
         }
         
         df = pd.DataFrame(transactions)
@@ -256,8 +228,7 @@ class RewardAnalyzer:
             insights['high_value_transactions'] = {
                 'count': len(high_value_transactions),
                 'total_amount': high_value_transactions['amount'].sum(),
-                'avg_amount': high_value_transactions['amount'].mean(),
-                'currency_code': currency_code
+                'avg_amount': high_value_transactions['amount'].mean()
             }
         
         return insights
@@ -265,14 +236,9 @@ class RewardAnalyzer:
     def calculate_credit_utilization(self, credit_card_info: Dict) -> Dict:
         current_balance = credit_card_info.get('current_balance', 0)
         credit_limit = credit_card_info.get('credit_limit', 0)
-        currency_code = self.get_currency_code(credit_card_info)
         
         if credit_limit == 0:
-            return {
-                'utilization_rate': 0, 
-                'status': 'Unknown - no credit limit provided',
-                'currency_code': currency_code
-            }
+            return {'utilization_rate': 0, 'status': 'Unknown - no credit limit provided'}
         
         utilization_rate = (current_balance / credit_limit) * 100
         
@@ -281,7 +247,6 @@ class RewardAnalyzer:
             'current_balance': current_balance,
             'credit_limit': credit_limit,
             'available_credit': credit_limit - current_balance,
-            'currency_code': currency_code,
             'status': '',
             'recommendations': []
         }
@@ -302,17 +267,14 @@ class RewardAnalyzer:
         return analysis
     
     def generate_comprehensive_report(self, transactions: List[Dict], credit_card_info: Dict, payment_history: List[Dict] = None) -> Dict:
-        currency_code = self.get_currency_code(credit_card_info)
-        
         report = {
             'summary': {
                 'total_transactions': len(transactions),
                 'total_spending': sum(t.get('amount', 0) for t in transactions),
-                'currency_code': currency_code,
                 'report_date': datetime.now().isoformat()
             },
             'rewards_analysis': self.analyze_rewards(transactions, credit_card_info),
-            'spending_insights': self.generate_spending_insights(transactions, currency_code),
+            'spending_insights': self.generate_spending_insights(transactions),
             'credit_utilization': self.calculate_credit_utilization(credit_card_info)
         }
         

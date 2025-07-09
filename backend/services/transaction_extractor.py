@@ -14,8 +14,10 @@ class TransactionExtractor:
                 r'(\d{1,2}\s+\w{3}\s+\d{4})',
             ],
             'amount': [
-                r'(?:AED|DHS)\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
-                r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:AED|DHS)',
+                r'\$(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
+                r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:USD|dollars?)',
+                r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:AED|DHS|dirham)',
+                r'(?:AED|DHS|dirham)\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
                 r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*CR',
                 r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*DR',
             ],
@@ -53,6 +55,11 @@ class TransactionExtractor:
                     transactions.append(transaction)
         
         transactions.extend(self.extract_tabular_transactions(text))
+        
+        # Try PDF-specific extraction if we don't have enough transactions
+        if len(transactions) < 3:
+            pdf_transactions = self.extract_pdf_specific_transactions(text)
+            transactions.extend(pdf_transactions)
         
         return self.deduplicate_transactions(transactions)
     
@@ -109,9 +116,8 @@ class TransactionExtractor:
         description_parts = []
         words = line.split()
         for word in words:
-            if (not re.match(r'^\d+[\/\-]\d+[\/\-]\d+$', word) and
-                not re.match(r'^(AED|DHS)\s?\d+[\.,]\d+$', word, re.IGNORECASE) and
-                not re.match(r'^\d+[\.,]\d+\s?(AED|DHS)$', word, re.IGNORECASE) and
+            if (not re.match(r'^\d+[\/\-]\d+[\/\-]\d+$', word) and 
+                not re.match(r'^\$?\d+[\.,]\d+$', word) and
                 len(word) > 2):
                 description_parts.append(word)
         
@@ -123,7 +129,150 @@ class TransactionExtractor:
             if not self.is_transaction_line(prev_line) and len(prev_line) > 10:
                 transaction['additional_description'] = prev_line
         
-        return transaction if 'date' in transaction and 'amount' in transaction else None
+        return transaction if ('date' in transaction or 'date_string' in transaction) and 'amount' in transaction else None
+    
+    def extract_multiline_transactions(self, lines: List[str]) -> List[Dict]:
+        transactions = []
+        i = 0
+        
+        while i < len(lines):
+            line = lines[i]
+            
+            # Look for date patterns that might start a transaction
+            date_match = None
+            for pattern in self.transaction_patterns['date']:
+                match = re.search(pattern, line, re.IGNORECASE)
+                if match:
+                    date_match = match.group(1)
+                    break
+            
+            if date_match:
+                # Look for amount in the same line or next few lines
+                transaction_lines = [line]
+                amount_found = False
+                
+                # Check current line for amount
+                for pattern in self.transaction_patterns['amount']:
+                    if re.search(pattern, line, re.IGNORECASE):
+                        amount_found = True
+                        break
+                
+                # If amount not found, check next few lines
+                if not amount_found:
+                    for j in range(i + 1, min(i + 4, len(lines))):
+                        next_line = lines[j]
+                        transaction_lines.append(next_line)
+                        
+                        for pattern in self.transaction_patterns['amount']:
+                            if re.search(pattern, next_line, re.IGNORECASE):
+                                amount_found = True
+                                break
+                        
+                        if amount_found:
+                            break
+                
+                if amount_found:
+                    combined_line = ' '.join(transaction_lines)
+                    transaction = self.parse_transaction_line(combined_line, lines, i)
+                    if transaction:
+                        transactions.append(transaction)
+            
+            i += 1
+        
+        return transactions
+    
+    def extract_statement_summary(self, text: str) -> List[Dict]:
+        transactions = []
+        
+        # Look for statement summary patterns
+        summary_patterns = [
+            r'(new\s+balance|current\s+balance|outstanding\s+balance)\s*[:.]?\s*\$?([\d,]+\.\d{2})',
+            r'(total\s+amount\s+due|amount\s+due|payment\s+due)\s*[:.]?\s*\$?([\d,]+\.\d{2})',
+            r'(minimum\s+payment|min\s+payment)\s*[:.]?\s*\$?([\d,]+\.\d{2})',
+            r'(previous\s+balance|last\s+balance)\s*[:.]?\s*\$?([\d,]+\.\d{2})',
+        ]
+        
+        for pattern in summary_patterns:
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                transaction_type = match.group(1).strip().lower()
+                amount_str = match.group(2)
+                
+                try:
+                    amount = float(amount_str.replace(',', ''))
+                    
+                    transaction = {
+                        'amount': amount,
+                        'description': f"{transaction_type.title()}: ${amount:,.2f}",
+                        'category': 'statement_summary',
+                        'merchant': 'Credit Card Statement',
+                        'date': datetime.now(),
+                        'raw_text': match.group(0),
+                        'transaction_type': transaction_type
+                    }
+                    
+                    transactions.append(transaction)
+                except ValueError:
+                    continue
+        
+        return transactions
+    
+    def extract_pdf_specific_transactions(self, text: str) -> List[Dict]:
+        """Extract transactions using PDF-specific patterns"""
+        transactions = []
+        
+        # Common PDF statement patterns
+        pdf_patterns = [
+            # Pattern: Date Amount Description
+            r'(\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4})\s+([\$]?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s+(.+)',
+            # Pattern: Date Description Amount
+            r'(\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4})\s+(.+?)\s+([\$]?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
+            # Pattern: Description Date Amount
+            r'(.+?)\s+(\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4})\s+([\$]?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
+        ]
+        
+        for pattern in pdf_patterns:
+            matches = re.finditer(pattern, text, re.MULTILINE)
+            for match in matches:
+                groups = match.groups()
+                
+                # Determine which group is date, amount, description
+                date_str = None
+                amount_str = None
+                description = None
+                
+                for group in groups:
+                    if re.match(r'\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}', group):
+                        date_str = group
+                    elif re.match(r'[\$]?\d{1,3}(?:,\d{3})*(?:\.\d{2})?', group):
+                        amount_str = group
+                    else:
+                        description = group
+                
+                if date_str and amount_str:
+                    try:
+                        parsed_date = dateparser.parse(date_str)
+                        amount = float(amount_str.replace('$', '').replace(',', ''))
+                        
+                        transaction = {
+                            'date': parsed_date,
+                            'amount': amount,
+                            'description': description.strip() if description else f'Transaction on {date_str}',
+                            'raw_text': match.group(0),
+                            'extraction_method': 'pdf_specific'
+                        }
+                        
+                        # Try to extract merchant from description
+                        if description:
+                            merchant_match = re.search(r'\b([A-Z][A-Z0-9\s&\-\.]{2,25})\b', description)
+                            if merchant_match:
+                                transaction['merchant'] = merchant_match.group(1).strip()
+                        
+                        transactions.append(transaction)
+                    except (ValueError, TypeError):
+                        continue
+        
+        return transactions
     
     def extract_tabular_transactions(self, text: str) -> List[Dict]:
         transactions = []
@@ -148,14 +297,15 @@ class TransactionExtractor:
     def count_numeric_fields(self, line: str) -> int:
         numeric_patterns = [
             r'\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}',
-            r'(?:AED|DHS)?\s*\d{1,3}(?:,\d{3})*(?:\.\d{2})?',
-            r'\d{1,3}(?:,\d{3})*(?:\.\d{2})?\s*(?:AED|DHS)?',
+            r'[\$]?\d{1,3}(?:,\d{3})*(?:\.\d{2})?',
+            r'(?:AED|DHS|dirham)\s*\d{1,3}(?:,\d{3})*(?:\.\d{2})?',
+            r'\d{1,3}(?:,\d{3})*(?:\.\d{2})?\s*(?:AED|DHS|dirham)',
             r'\d{4}',
         ]
         
         count = 0
         for pattern in numeric_patterns:
-            matches = re.findall(pattern, line, re.IGNORECASE)
+            matches = re.findall(pattern, line)
             count += len(matches)
         
         return count
@@ -185,31 +335,23 @@ class TransactionExtractor:
                 break
         
         for field in fields:
-            # Updated to handle AED/DHS patterns
-            amount_patterns = [
-                r'(?:AED|DHS)\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
-                r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:AED|DHS)',
-                r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
-            ]
-            
-            for pattern in amount_patterns:
-                amount_match = re.search(pattern, field, re.IGNORECASE)
-                if amount_match:
-                    try:
-                        amount = float(amount_match.group(1).replace(',', ''))
-                        transaction['amount'] = amount
-                        break
-                    except ValueError:
-                        continue
-            
-            if 'amount' in transaction:
-                break
+            amount_match = re.search(r'[\$]?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)', field)
+            if not amount_match:
+                amount_match = re.search(r'(?:AED|DHS|dirham)\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)', field, re.IGNORECASE)
+            if not amount_match:
+                amount_match = re.search(r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:AED|DHS|dirham)', field, re.IGNORECASE)
+            if amount_match:
+                try:
+                    amount = float(amount_match.group(1).replace(',', ''))
+                    transaction['amount'] = amount
+                    break
+                except ValueError:
+                    continue
         
         description_fields = []
         for field in fields:
             if (not re.match(r'^\d+[\/\-]\d+[\/\-]\d+$', field) and 
-                not re.match(r'^(AED|DHS)\s?\d+[\.,]\d+$', field, re.IGNORECASE) and
-                not re.match(r'^\d+[\.,]\d+\s?(AED|DHS)$', field, re.IGNORECASE) and
+                not re.match(r'^\$?\d+[\.,]\d+$', field) and
                 len(field) > 2):
                 description_fields.append(field)
         
@@ -253,12 +395,10 @@ class TransactionExtractor:
                 info['card_last_four'] = match.group(1)
                 break
         
-        # Updated balance patterns to handle AED/DHS
         balance_patterns = [
-            r'current\s+balance:?\s*(?:AED|DHS)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
-            r'new\s+balance:?\s*(?:AED|DHS)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
-            r'balance:?\s*(?:AED|DHS)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
-            r'(?:AED|DHS)\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:current\s+balance|new\s+balance|balance)',
+            r'current\s+balance:?\s*\$?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
+            r'new\s+balance:?\s*\$?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
+            r'balance:?\s*\$?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
         ]
         
         for pattern in balance_patterns:
@@ -284,12 +424,10 @@ class TransactionExtractor:
                     info['due_date'] = due_date
                     break
         
-        # Updated minimum payment patterns to handle AED/DHS
         minimum_payment_patterns = [
-            r'minimum\s+payment:?\s*(?:AED|DHS)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
-            r'min\s+payment:?\s*(?:AED|DHS)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
-            r'minimum\s+due:?\s*(?:AED|DHS)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
-            r'(?:AED|DHS)\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:minimum\s+payment|min\s+payment|minimum\s+due)',
+            r'minimum\s+payment:?\s*\$?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
+            r'min\s+payment:?\s*\$?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
+            r'minimum\s+due:?\s*\$?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
         ]
         
         for pattern in minimum_payment_patterns:

@@ -1,0 +1,12 @@
+/Users/sbartoul/.local/share/virtualenvs/helloworld-qtZXnyU4/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8/Users/sbartoul/.local/share/virtualenvs/helloworld-qtZXnyU4/lib/python3.9INFO:     Started server process [18415]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:59054 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59054 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61091 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61091 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [18415]
