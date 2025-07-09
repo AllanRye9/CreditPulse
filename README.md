@@ -45,21 +45,7 @@
 - Flutter 3.13+
 - Google Cloud Platform account (for Gmail API
 
-  ```mermaid
-graph TD
-    A[User Device] -->|OAuth2| B[Gmail API]
-    A -->|SMS Permissions| C[SMS Manager]
-    B -->|Encrypted| D[Local Processing]
-    C -->|Encrypted| D
-    D -->|AES-256| E[Encrypted Storage]
-    
-    style A fill:#1f2020,stroke:#4a90e2
-    style B fill:#1f2020,stroke:#34d058
-    style C fill:#1f2020,stroke:#34d058
-    style D fill:#1f2020,stroke:#d4c5f9
-    style E fill:#1f2020,stroke:#f97583
-```
-  
+ 
 ### Installation
 
 Frontend (Flutter)
@@ -77,3 +63,20 @@ flutter build ios --release
 cd backend
 pip install -r requirements.txt
 python main.py
+```
+
+ ```mermaid
+graph TD
+    A[User Device] -->|OAuth2| B[Gmail API]
+    A -->|SMS Permissions| C[SMS Manager]
+    B -->|Encrypted| D[Local Processing]
+    C -->|Encrypted| D
+    D -->|AES-256| E[Encrypted Storage]
+    
+    style A fill:#1f2020,stroke:#4a90e2
+    style B fill:#1f2020,stroke:#34d058
+    style C fill:#1f2020,stroke:#34d058
+    style D fill:#1f2020,stroke:#d4c5f9
+    style E fill:#1f2020,stroke:#f97583
+```
+  
