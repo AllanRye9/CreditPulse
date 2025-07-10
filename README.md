@@ -36,7 +36,9 @@
 </div>
 
 ---
-<div style="display: flex; gap: 10px; overflow-x: auto;"><img src="images/wio2.jpeg" width="200" alt="Spending Analysis"> <img src="images/wio-pat.jpeg" width="200" alt="Payment Alerts"> </div>
+<div style="display: flex; gap: 10px; overflow-x: auto;"><img src="images/wio.jpeg" width="200" alt="Spending Analysis"> <img src="images/wio1.jpeg" width="200" alt="do"> <img src="images/wio2.jpeg" width="200" alt="run">
+<img src="images/wio3.jpeg" width="200" alt="Alerts"> <img src="images/wio4.jpeg" width="200" alt="Pay>
+</div>
 
 ## 🚀 Quick Start
 
