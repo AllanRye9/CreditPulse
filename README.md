@@ -9,7 +9,12 @@
 
 ## App video demo
 
-[![Video Demo](images/wio-video.gif)](images/wio-video.mp4)
+<p align="center">
+  <a href="images/wio-video.mp4">
+    <img src="images/wio-video.gif" alt="Video Demo" />
+  </a>
+</p>
+
 
 ---
 
