@@ -9,7 +9,8 @@
 
 ## App video demo
 
-![Video Demo](images/wio-video.mp4)
+[![Video Demo](images/intro.jpg)](images/wio-video.mp4)
+
 ---
 
 ## ✨ Features
