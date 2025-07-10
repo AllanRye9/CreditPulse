@@ -9,7 +9,7 @@
 
 ## App video demo
 
-[![Video Demo](images/intro.jpg)](images/wio-video.mp4)
+[![Video Demo](images/wio-video.gif)](images/wio-video.mp4)
 
 ---
 
