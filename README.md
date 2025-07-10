@@ -7,6 +7,9 @@
 **Transform email/SMS financial data into actionable insights**  
 *A smart financial assistant that automatically analyzes credit card statements and payment reminders*
 
+## App video demo
+
+![Video Demo](images/wio-video.mp4)
 ---
 
 ## ✨ Features
